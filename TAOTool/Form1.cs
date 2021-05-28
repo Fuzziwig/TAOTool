@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data.SqlClient;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
@@ -15,6 +16,7 @@ namespace TAOTool
         List<string> csvChangedfiles = new List<string>();
         List<string> csvUploadfiles = new List<string>();
         List<string> csvLog = new List<string>();
+        List<Reading> csvFileBuffer = new List<Reading>();
         int readingTotalRows = -1;
         public Form1()
         {
@@ -135,7 +137,8 @@ namespace TAOTool
             {
                 try
                 {
-                    db.createReadings(csvr.readCSVFile(@csvfile));
+                    this.csvFileBuffer = csvr.readCSVFile(@csvfile);
+                    db.createReadings(csvFileBuffer);
                 }
                 catch (SqlException ex)
                 {
@@ -146,19 +149,20 @@ namespace TAOTool
         //sets status after database has been uploaded
         private void backgroundWorkerDBUpload_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
-            this.csvLog.Clear();
-            this.csvLog.AddRange(csvUploadfiles);
-            updateLog();
+            //this.csvLog.Clear();
+            //this.csvLog.AddRange(csvUploadfiles);
+            //updateLog();
             this.csvUploadfiles.Clear();
             int currentRows = db.getReadingsRows();
             int rowsAdded = currentRows - this.readingTotalRows;
             this.readingTotalRows = currentRows;
-            statusLabel.Text = "Uploading Done - Added total of "+rowsAdded.ToString()+ "rows";
+            statusLabel.Text = "Uploading Done - Added total of "+rowsAdded.ToString()+ " rows";
             exitButton.Enabled = true;
         }
         //check if our database is online or offline
         private void backgroundWorkerDBStatus_DoWork(object sender, DoWorkEventArgs e)
         {
+            int rowprogress = 0;
             while (true)
             {
                 string status = "";
@@ -180,10 +184,28 @@ namespace TAOTool
                         int Rows = db.getReadingsRows()-this.readingTotalRows;
                         dbStatusLabel.Invoke(new Action(() =>
                         {
-                            statusLabel.Text = "Uploading - Added "+Rows.ToString()+" rows";
+                            statusLabel.Text = "Uploading - Added "+Rows.ToString()+" rows of "+ csvFileBuffer.Count+ " rows";
+                            this.csvLog.AddRange(csvFileBuffer.GetRange(rowprogress, Rows-rowprogress).Select(s => s.ToString()));
+                            rowprogress = Rows + 1;
+                            updateLog();
+                            logListBox.SelectedIndex = logListBox.Items.Count - 1;
+                            logListBox.SelectedIndex = -1;
                         }));
                     }
-                    Thread.Sleep(5000);
+                    else if (csvFileBuffer.Count>0)
+                    {
+                        int Rows = db.getReadingsRows() - this.readingTotalRows;
+                        dbStatusLabel.Invoke(new Action(() =>
+                        {
+                            this.csvLog.AddRange(csvFileBuffer.GetRange(rowprogress, csvFileBuffer.Count- rowprogress).Select(s => s.ToString()));
+                            updateLog();
+                            logListBox.SelectedIndex = logListBox.Items.Count - 1;
+                            logListBox.SelectedIndex = -1;
+                            csvFileBuffer = new List<Reading>();
+                            this.readingTotalRows = -1;
+                        }));
+                    }
+                    Thread.Sleep(1000);
                 }
                 else
                 {

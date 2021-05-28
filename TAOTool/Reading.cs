@@ -12,5 +12,9 @@ namespace TAOTool
         public double Mwh { get; set; }
         public double M3 { get; set; }
         public int UserID { get; set; }
+        public override string ToString()
+        {
+            return RDate.ToString() + " - " + Mwh.ToString()+ " Mwh - " + M3.ToString() + " M3";
+        }
     }
 }
