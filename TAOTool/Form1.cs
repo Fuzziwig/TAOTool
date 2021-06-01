@@ -61,6 +61,10 @@ namespace TAOTool
             this.csvLog.Clear();
             this.csvLog.AddRange(csvChangedfiles);
             updateLog();
+            if (!csvChangedfiles.Any())
+            {
+                checkCSVButton.Enabled = false;
+            }
         }
 
         private void checkCSVButton_Click(object sender, EventArgs e)
